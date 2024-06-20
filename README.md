@@ -26,7 +26,7 @@ This should send notification that says "It works".
 
 ## Installing
 
-To install git repo just type:
+To download git repo just type:
 
 ```
 git clone https://github.com/NicholasNDev/vram-helper
