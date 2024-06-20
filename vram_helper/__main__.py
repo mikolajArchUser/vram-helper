@@ -4,7 +4,7 @@ Uses notify-send by default
 
 MAX_VRAM_USAGE is maximal acceptable VRAM usage,
 if GPU exceeds this limit warning will be displayed,
-then for every +THRESHOLD Mib it will display another warning
+then for every +VRAM_THRESHOLD Mib it will display another warning
 
 VRAM_TOTAL is your gpu VRAM capacity. Make sure to update this variable
 """
@@ -16,16 +16,19 @@ import sys
 import argparse
 
 # max acceptable VRAM usage in megabytes
-MAX_VRAM_USAGE = 3800
+MAX_VRAM_USAGE = 2000
 
-# Maximum allowed VRAM usage threshold in megabytes
-THRESHOLD = 100
+# VRAM usage threshold in megabytes
+VRAM_THRESHOLD = 100
 
 #max available VRAM
 VRAM_TOTAL = 2048
 
-#max acceptable temperature in degrees Celcius
-MAX_TEMP = 80
+#max acceptable temperature in degrees Celcius, work in progress
+MAX_TEMP = 30
+
+# temperature threshold in degrees celcius
+TEMP_THRESHOLD = 5
 
 #time between updates in seconds
 WAITTIME = 2
@@ -39,6 +42,18 @@ VERBOSITY_LEVEL = 0
 #enable automatic configuration
 AUTODETECT = True
 
+
+def on_vram_exceeded():
+    """
+    Use this method if you want to add your custom functionality
+    """
+    log_mess("Function 'on_vram_exceeded' invoked!")
+
+def call_function(func, *args, **kwargs):
+    """
+    Used to call different functions
+    """
+    return func(*args, **kwargs)
 
 def log_mess(message, layer = 0):
     """
@@ -140,36 +155,46 @@ def get_temp():
 
 
 
-def send_vram_warning(message):
+def send_system_warning(message):
     """
     prints VRAM usage warning using notify-send (change your this as needed)
     """
     try:
-        print("Warning! " + message)
+        log_warn(message)
         subprocess.run(["notify-send", "--urgency=critical" ,"Warning!", message], check=True)
     except subprocess.CalledProcessError as e:
         log_err(f"Error: {e}")
 
 
-def start_monitoring():
+def start_monitoring(func):
     """
     the main program loop,
     monitors vram usage in real time and sends warnings if it exceeds certain limit
     """
-    last_warning_vram = MAX_VRAM_USAGE - 20
+    last_warning_vram = MAX_VRAM_USAGE
+    last_warning_temp = MAX_TEMP
     while True:
         vram_usage = get_vram_usage()
         gpu_temp = get_temp()
+
         if vram_usage is not None:
-            if vram_usage < last_warning_vram - THRESHOLD and last_warning_vram >= MAX_VRAM_USAGE:
-                last_warning_vram -= THRESHOLD
+            if vram_usage < last_warning_vram - VRAM_THRESHOLD and last_warning_vram >= MAX_VRAM_USAGE:
+                last_warning_vram -= VRAM_THRESHOLD
+
             log_mess(f"VRAM Usage: {vram_usage} MiB, temp: {gpu_temp}°C")
-            if vram_usage > last_warning_vram + THRESHOLD:
-                last_warning_vram += THRESHOLD
-                send_vram_warning("VRAM usage critical! " +
+            if gpu_temp > last_warning_temp + TEMP_THRESHOLD:
+                last_warning_temp = gpu_temp + TEMP_THRESHOLD
+                send_system_warning(f"GPU temperature exceeded {gpu_temp}°C")
+
+            if vram_usage > last_warning_vram + VRAM_THRESHOLD:
+                last_warning_vram = vram_usage + VRAM_THRESHOLD
+                send_system_warning("VRAM usage critical! " +
                         f"{vram_usage}/{VRAM_TOTAL}Mib, " +
                         f"({(int)((vram_usage / VRAM_TOTAL) * 100)}%)")
+                call_function(func)
+
         time.sleep(WAITTIME)
+
 
 def main():
     """
@@ -192,7 +217,7 @@ def main():
     else:
         log_warn("Program will not attempt to gather any information, " +
         "make sure that information provided in the script is correct!")
-    start_monitoring()
+    start_monitoring(on_vram_exceeded)
 
 if __name__ == "__main__":
     main()
