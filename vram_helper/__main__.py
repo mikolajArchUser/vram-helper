@@ -49,6 +49,12 @@ def on_vram_exceeded():
     """
     log_mess("Function 'on_vram_exceeded' invoked!")
 
+def on_temp_exceeded():
+    """
+    Use this method if you want to add your custom functionality
+    """
+    log_mess("Function 'on_vram_exceeded' invoked!")
+
 def call_function(func, *args, **kwargs):
     """
     Used to call different functions
@@ -166,7 +172,7 @@ def send_system_warning(message):
         log_err(f"Error: {e}")
 
 
-def start_monitoring(func):
+def start_monitoring(func_vram, func_temp):
     """
     the main program loop,
     monitors vram usage in real time and sends warnings if it exceeds certain limit
@@ -185,13 +191,14 @@ def start_monitoring(func):
             if gpu_temp > last_warning_temp + TEMP_THRESHOLD:
                 last_warning_temp = gpu_temp + TEMP_THRESHOLD
                 send_system_warning(f"GPU temperature exceeded {gpu_temp}°C")
+                call_function(func_temp)
 
             if vram_usage > last_warning_vram + VRAM_THRESHOLD:
                 last_warning_vram = vram_usage + VRAM_THRESHOLD
                 send_system_warning("VRAM usage critical! " +
                         f"{vram_usage}/{VRAM_TOTAL}Mib, " +
                         f"({(int)((vram_usage / VRAM_TOTAL) * 100)}%)")
-                call_function(func)
+                call_function(func_vram)
 
         time.sleep(WAITTIME)
 
