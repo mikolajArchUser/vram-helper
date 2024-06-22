@@ -1,6 +1,6 @@
 # vram-helper
 
-git repo: https://github.com/NicholasNDev/vram-helper
+git repo: https://github.com/mikolajArchUser/vram-helper
 
 Little python script that displays warnings when VRAM exceeds specified limit. Useful when doing some VRAM-intensive tasks on low-end devices (nvidia gpus only).
 
