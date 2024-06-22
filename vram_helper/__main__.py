@@ -15,6 +15,8 @@ import time
 import sys
 import argparse
 
+from logger import log_mess, log_warn, log_err
+
 # max acceptable VRAM usage in megabytes
 MAX_VRAM_USAGE = 2000
 
@@ -25,19 +27,13 @@ VRAM_THRESHOLD = 100
 VRAM_TOTAL = 2048
 
 #max acceptable temperature in degrees Celcius, work in progress
-MAX_TEMP = 30
+MAX_TEMP = 80
 
 # temperature threshold in degrees celcius
 TEMP_THRESHOLD = 5
 
 #time between updates in seconds
 WAITTIME = 2
-
-#controls the minimum priority of log messages:
-#  -0 to display all logs
-#  -1 to display only warnings
-#  -2 to display only errors
-VERBOSITY_LEVEL = 0
 
 #enable automatic configuration
 AUTODETECT = True
@@ -60,31 +56,6 @@ def call_function(func, *args, **kwargs):
     Used to call different functions
     """
     return func(*args, **kwargs)
-
-def log_mess(message, layer = 0):
-    """
-    prints messages in log format
-    """
-    if VERBOSITY_LEVEL > 0:
-        return
-    print(" " * 2 * layer + f"\033[92m[LOG]\033[0m {message}")
-
-
-def log_warn(message, layer = 0):
-    """
-    prints messages in warning format
-    """
-    if VERBOSITY_LEVEL > 1:
-        return
-    print(" " * 2 * layer + f"\033[33m[WARN]\033[0m {message}")
-
-
-def log_err(message, layer = 0):
-    """
-    prints messages in error format
-    """
-    print(" " * 2 * layer + f"\033[91m[ERR]\033[0m {message}")
-
 
 def update_variables():
     """
@@ -224,7 +195,7 @@ def main():
     else:
         log_warn("Program will not attempt to gather any information, " +
         "make sure that information provided in the script is correct!")
-    start_monitoring(on_vram_exceeded)
+    start_monitoring(on_vram_exceeded, on_temp_exceeded)
 
 if __name__ == "__main__":
     main()
