@@ -29,7 +29,7 @@ This should send notification that says "It works".
 To download git repo just type:
 
 ```
-git clone https://github.com/NicholasNDev/vram-helper
+git clone https://github.com/mikolajArchUser/vram-helper.git
 ```
 
 and then install using pip:
