@@ -15,7 +15,7 @@ import time
 import sys
 import argparse
 
-from logger import log_mess, log_warn, log_err
+import logger as l
 
 # max acceptable VRAM usage in megabytes
 MAX_VRAM_USAGE = 2000
@@ -35,38 +35,24 @@ TEMP_THRESHOLD = 5
 #time between updates in seconds
 WAITTIME = 2
 
-#enable automatic configuration
-AUTODETECT = True
 
-
-def on_vram_exceeded():
-    """
-    Use this method if you want to add your custom functionality
-    """
-    log_mess("Function 'on_vram_exceeded' invoked!")
-
-def on_temp_exceeded():
-    """
-    Use this method if you want to add your custom functionality
-    """
-    log_mess("Function 'on_vram_exceeded' invoked!")
-
-def call_function(func, *args, **kwargs):
+def _call_function(func, *args, **kwargs):
     """
     Used to call different functions
     """
-    return func(*args, **kwargs)
+    if callable(func):
+        return func(*args, **kwargs)
 
-def update_variables():
+def _update_variables():
     """
     automatically updates variables based on gathered info
     """
-    log_mess("Attempting to autodetect necessary info...")
+    l.log_mess("Attempting to autodetect necessary info...")
     try:
         output = subprocess.check_output(["nvidia-smi",
                                           "--query-gpu=name",
                                           "--format=csv,noheader"])
-        log_mess(f"Detected GPU: {output.decode('utf-8').strip()}", 1)
+        l.log_mess(f"Detected GPU: {output.decode('utf-8').strip()}", 1)
 
         output = subprocess.check_output(["nvidia-smi",
                                           "--query-gpu=memory.total",
@@ -74,21 +60,21 @@ def update_variables():
 
         global VRAM_TOTAL # pylint: disable=global-statement
         VRAM_TOTAL = int(output.decode("utf-8").strip())
-        log_mess(f"Detected {VRAM_TOTAL}Mib of VRAM available.", 1)
+        l.log_mess(f"Detected {VRAM_TOTAL}Mib of VRAM available.", 1)
 
         global MAX_VRAM_USAGE # pylint: disable=global-statement
         MAX_VRAM_USAGE = VRAM_TOTAL * .9
-        log_mess(f"MAX_VRAM_USAGE set to {VRAM_TOTAL * .9}", 1)
+        l.log_mess(f"MAX_VRAM_USAGE set to {VRAM_TOTAL * .9}", 1)
 
-        log_mess(f"Script will update every {WAITTIME}s", 1)
+        l.log_mess(f"Script will update every {WAITTIME}s", 1)
 
-        log_mess(f"Max acceptable temperature is set to {MAX_TEMP}°C", 1)
+        l.log_mess(f"Max acceptable temperature is set to {MAX_TEMP}°C", 1)
 
     except subprocess.CalledProcessError as e:
-        log_err(f"Failed to gather necessary info due to following errors: {e}", 1)
+        l.log_err(f"Failed to gather necessary info due to following errors: {e}", 1)
 
     except FileNotFoundError:
-        log_err("Failed to gather necessary info, make sure that nvidia drivers are installed!", 1)
+        l.log_err("Failed to gather necessary info, make sure that nvidia drivers are installed!", 1)
         sys.exit()
 
 
@@ -102,11 +88,11 @@ def get_vram_usage():
                                           "--format=csv,noheader,nounits"])
         return int(re.search(r'\d+', output.decode('utf-8')).group())
     except subprocess.CalledProcessError as e:
-        log_err(f"Failed to get VRAM usage! {e}")
+        l.log_err(f"Failed to get VRAM usage! {e}")
         sys.exit()
 
     except FileNotFoundError:
-        log_err("Failed to get VRAM usage! " +
+        l.log_err("Failed to get VRAM usage! " +
                 "'nvidia-smi' command not found. " +
                 "Please make sure NVIDIA drivers are installed.")
         sys.exit()
@@ -121,33 +107,40 @@ def get_temp():
                                           "--format=csv,noheader,nounits"])
         return int(re.search(r'\d+', output.decode('utf-8')).group())
     except subprocess.CalledProcessError as e:
-        log_err(f"Failed to get GPU temperature! {e}")
+        l.log_err(f"Failed to get GPU temperature! {e}")
         sys.exit()
 
     except FileNotFoundError:
-        log_err("Failed to get GPU temperature! " +
+        l.log_err("Failed to get GPU temperature! " +
                 "'nvidia-smi' command not found. " +
                 "Please make sure NVIDIA drivers are installed.")
         sys.exit()
 
 
 
-def send_system_warning(message):
+def _send_system_warning(message):
     """
     prints VRAM usage warning using notify-send (change your this as needed)
     """
     try:
-        log_warn(message)
+        l.log_warn(message)
         subprocess.run(["notify-send", "--urgency=critical" ,"Warning!", message], check=True)
     except subprocess.CalledProcessError as e:
-        log_err(f"Error: {e}")
+        l.log_err(f"Error: {e}")
 
 
-def start_monitoring(func_vram, func_temp):
+def start_monitoring(autodetect = True, func_vram = None, func_temp = None):
     """
     the main program loop,
     monitors vram usage in real time and sends warnings if it exceeds certain limit
     """
+    if autodetect:
+        _update_variables()
+    else:
+        l.log_warn("Program will not attempt to gather any information, " +
+        "make sure that information provided in the script is correct!")
+
+
     last_warning_vram = MAX_VRAM_USAGE
     last_warning_temp = MAX_TEMP
     while True:
@@ -158,44 +151,21 @@ def start_monitoring(func_vram, func_temp):
             if vram_usage < last_warning_vram - VRAM_THRESHOLD and last_warning_vram >= MAX_VRAM_USAGE:
                 last_warning_vram -= VRAM_THRESHOLD
 
-            log_mess(f"VRAM Usage: {vram_usage} MiB, temp: {gpu_temp}°C")
+            l.log_mess(f"VRAM Usage: {vram_usage} MiB, temp: {gpu_temp}°C")
             if gpu_temp > last_warning_temp + TEMP_THRESHOLD:
                 last_warning_temp = gpu_temp + TEMP_THRESHOLD
-                send_system_warning(f"GPU temperature exceeded {gpu_temp}°C")
-                call_function(func_temp)
+                _send_system_warning(f"GPU temperature exceeded {gpu_temp}°C")
+                _call_function(func_temp)
 
             if vram_usage > last_warning_vram + VRAM_THRESHOLD:
                 last_warning_vram = vram_usage + VRAM_THRESHOLD
-                send_system_warning("VRAM usage critical! " +
+                _send_system_warning("VRAM usage critical! " +
                         f"{vram_usage}/{VRAM_TOTAL}Mib, " +
                         f"({(int)((vram_usage / VRAM_TOTAL) * 100)}%)")
-                call_function(func_vram)
+                _call_function(func_vram)
 
         time.sleep(WAITTIME)
 
-
-def main():
-    """
-    init function
-    """
-    global AUTODETECT # pylint: disable=global-statement
-
-    parser = argparse.ArgumentParser("python3 vram_helper.py")
-
-    group = parser.add_mutually_exclusive_group()
-    group.add_argument('--noauto', dest='auto', action='store_false',
-                       help='Disable automatic detection mode')
-    parser.set_defaults(auto=True)
-    args = parser.parse_args()
-
-    AUTODETECT = args.auto
-
-    if AUTODETECT:
-        update_variables()
-    else:
-        log_warn("Program will not attempt to gather any information, " +
-        "make sure that information provided in the script is correct!")
-    start_monitoring(on_vram_exceeded, on_temp_exceeded)
-
 if __name__ == "__main__":
-    main()
+    l.set_verbosity(0)
+    start_monitoring()
