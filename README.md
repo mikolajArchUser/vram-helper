@@ -16,7 +16,7 @@ Script requires nvidia-smi to get VRAM usage so you obviously need to install nv
   ```
 -->
 
-Program will send notifications using notify-send, so make sure it works and is configured properly. You can do this by typing:
+Program will send a notifications using notify-send, so make sure it works and is configured properly. You can do this by typing:
 
 ```
 notify-send -u normal "It works"
@@ -30,6 +30,11 @@ To download git repo just type:
 
 ```
 git clone https://github.com/mikolajArchUser/vram-helper.git
+```
+
+Navigate to the repo with `cd`:
+```
+cd vram-helper
 ```
 
 and then install using pip:
@@ -54,10 +59,8 @@ For options type:
 python3 -m vram_helper -h
 ```
 
-Script should automatically update its variables unless you use the `--noauto` parameter. Make sure the values are correct
+Script should automatically update its variables unless you use the `--noauto` parameter.
 
 ## Usage
 
-When running a VRAM-intensive task just run `python3 -m vram_helper` in another terminal - it will prevent crashes by notifying you about critical VRAM levels.
-
-You can always make this script run on start, but this can be very annoying when playing games, so I just run it manually.
+When running a VRAM-intensive task just run `python3 -m vram_helper` in another terminal or as a background process - it will help you prevent crashes by notifying you about critical VRAM levels.
