@@ -1,6 +1,5 @@
 """
-Simple python script that sends warnings about VRAM usage.
-Uses notify-send by default
+Simple python script that sends warnings if VRAM usage exceeds limit.
 
 MAX_VRAM_USAGE is maximal acceptable VRAM usage,
 if GPU exceeds this limit warning will be displayed,
@@ -18,21 +17,21 @@ import argparse
 import logger as l
 
 # max acceptable VRAM usage in megabytes
-MAX_VRAM_USAGE = 2000
+MAX_VRAM_USAGE = 1900
 
 # VRAM usage threshold in megabytes
 VRAM_THRESHOLD = 100
 
-#max available VRAM
+# max available VRAM
 VRAM_TOTAL = 2048
 
-#max acceptable temperature in degrees Celcius, work in progress
+# max acceptable temperature in degrees Celcius, work in progress
 MAX_TEMP = 80
 
 # temperature threshold in degrees celcius
 TEMP_THRESHOLD = 5
 
-#time between updates in seconds
+# time between updates in seconds
 WAITTIME = 2
 
 
@@ -42,17 +41,18 @@ def _call_function(func, *args, **kwargs):
     """
     if callable(func):
         return func(*args, **kwargs)
+    return None
 
 def _update_variables():
     """
     automatically updates variables based on gathered info
     """
-    l.log_mess("Attempting to autodetect necessary info...")
+    l.log_inf("Attempting to autodetect necessary info...")
     try:
         output = subprocess.check_output(["nvidia-smi",
                                           "--query-gpu=name",
                                           "--format=csv,noheader"])
-        l.log_mess(f"Detected GPU: {output.decode('utf-8').strip()}", 1)
+        l.log_inf(f"Detected GPU: {output.decode('utf-8').strip()}", 1)
 
         output = subprocess.check_output(["nvidia-smi",
                                           "--query-gpu=memory.total",
@@ -60,15 +60,15 @@ def _update_variables():
 
         global VRAM_TOTAL # pylint: disable=global-statement
         VRAM_TOTAL = int(output.decode("utf-8").strip())
-        l.log_mess(f"Detected {VRAM_TOTAL}Mib of VRAM available.", 1)
+        l.log_inf(f"Detected {VRAM_TOTAL}Mib of VRAM available.", 1)
 
         global MAX_VRAM_USAGE # pylint: disable=global-statement
         MAX_VRAM_USAGE = VRAM_TOTAL * .9
-        l.log_mess(f"MAX_VRAM_USAGE set to {VRAM_TOTAL * .9}", 1)
+        l.log_inf(f"MAX_VRAM_USAGE set to {VRAM_TOTAL * .9}", 1)
 
-        l.log_mess(f"Script will update every {WAITTIME}s", 1)
+        l.log_inf(f"Script will update every {WAITTIME}s", 1)
 
-        l.log_mess(f"Max acceptable temperature is set to {MAX_TEMP}°C", 1)
+        l.log_inf(f"Max acceptable temperature is set to {MAX_TEMP}°C", 1)
 
     except subprocess.CalledProcessError as e:
         l.log_err(f"Failed to gather necessary info due to following errors: {e}", 1)
@@ -128,8 +128,32 @@ def _send_system_warning(message):
     except subprocess.CalledProcessError as e:
         l.log_err(f"Error: {e}")
 
+def main():
+    """
+    arguments parsing function
+    """
+    parser = argparse.ArgumentParser(description="VRAM monitor for Nvidia GPUs")
+    parser.add_argument('command', nargs='?', choices=['start'], help='the command to execute')
+    parser.add_argument('-n', '--noauto', action='store_true', help="don't automatically update variables")
+    parser.add_argument('-v', '--verbosity', nargs='?', help='set logger verbosity')
 
-def start_monitoring(autodetect = True, func_vram = None, func_temp = None):
+    args = parser.parse_args()
+
+    autodetect = True
+
+    if args.noauto:
+        autodetect = False
+
+    if args.verbosity:
+        l.set_verbosity(int(args.verbosity))
+
+    if args.command == 'start':
+        start_monitoring(autodetect=autodetect)
+
+    l.log_err("No command to execute!")
+
+
+def start_monitoring(autodetect = True, func_vram=None, func_temp=None):
     """
     the main program loop,
     monitors vram usage in real time and sends warnings if it exceeds certain limit
@@ -139,7 +163,6 @@ def start_monitoring(autodetect = True, func_vram = None, func_temp = None):
     else:
         l.log_warn("Program will not attempt to gather any information, " +
         "make sure that information provided in the script is correct!")
-
 
     last_warning_vram = MAX_VRAM_USAGE
     last_warning_temp = MAX_TEMP
@@ -151,7 +174,7 @@ def start_monitoring(autodetect = True, func_vram = None, func_temp = None):
             if vram_usage < last_warning_vram - VRAM_THRESHOLD and last_warning_vram >= MAX_VRAM_USAGE:
                 last_warning_vram -= VRAM_THRESHOLD
 
-            l.log_mess(f"VRAM Usage: {vram_usage} MiB, temp: {gpu_temp}°C")
+            l.log_inf(f"VRAM Usage: {vram_usage} MiB, temp: {gpu_temp}°C")
             if gpu_temp > last_warning_temp + TEMP_THRESHOLD:
                 last_warning_temp = gpu_temp + TEMP_THRESHOLD
                 _send_system_warning(f"GPU temperature exceeded {gpu_temp}°C")
@@ -167,5 +190,4 @@ def start_monitoring(autodetect = True, func_vram = None, func_temp = None):
         time.sleep(WAITTIME)
 
 if __name__ == "__main__":
-    l.set_verbosity(0)
-    start_monitoring()
+    main()
