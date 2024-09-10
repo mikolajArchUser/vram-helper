@@ -43,7 +43,7 @@ With nvidia drivers and other requirements installed you can run the script by t
 python3 vram_helper -v 0 start
 ```
 
-The script should start printing current VRAM usage
+The script should start printing current VRAM usage.
 
 For options type:
 
